@@ -52,8 +52,8 @@ def get_stage(ma5, ma20, ma40):
 
 # 3일 연속 간격 증가 확인 함수
 def is_gap_increasing(ticker, ma_short, ma_medium, ma_long):
-    gap1 = [ma_medium.iloc[i][ticker] - ma_short.iloc[i][ticker] for i in range(3)]
-    gap2 = [ma_long.iloc[i][ticker] - ma_medium.iloc[i][ticker] for i in range(3)]
+    gap1 = [ma_short.iloc[i][ticker] - ma_medium.iloc[i][ticker] for i in range(3)]
+    gap2 = [ma_medium.iloc[i][ticker] - ma_long.iloc[i][ticker] for i in range(3)]
     is_gap1_increasing = gap1[0] > gap1[1] > gap1[2]
     is_gap2_increasing = gap2[0] > gap2[1] > gap2[2]
 
@@ -101,14 +101,10 @@ def check_condition(ticker):
         df_ma20 = pd.DataFrame(ma20.iloc[long_window-1:].iloc[::-1])
         df_ma40 = pd.DataFrame(ma40.iloc[long_window-1:].iloc[::-1])
 
-        ##### 단,중,장기 이동평균선 3일 연속 향상
-        if not (df_ma5.iloc[0][ticker] > df_ma5.iloc[1][ticker] > df_ma5.iloc[2][ticker] and
-                df_ma20.iloc[0][ticker] > df_ma20.iloc[1][ticker] > df_ma20.iloc[2][ticker] and
+        ##### 단,중,장기 이동평균선 3일 연속 향상(미충족시 skip)
+        if not(df_ma5.iloc[0][ticker] > df_ma5.iloc[1][ticker] > df_ma5.iloc[2][ticker] and \
+                df_ma20.iloc[0][ticker] > df_ma20.iloc[1][ticker] > df_ma20.iloc[2][ticker] and \
                 df_ma40.iloc[0][ticker] > df_ma40.iloc[1][ticker] > df_ma40.iloc[2][ticker]):
-            return False
-
-        ##### 단-중-장기 이동평균선 간격 3일 연속 증가
-        if is_gap_increasing(ticker, df_ma5, df_ma20, df_ma40) == False:
             return False
 
         stages = []
@@ -125,7 +121,11 @@ def check_condition(ticker):
         if len(cp_stages) < 2:
             return False
         if cp_stages[0] == 1 and cp_stages[1] == 6:
-            return True
+            ##### 단-중-장기 이동평균선 간격 3일 연속 증가(미충족시 skip)
+            if is_gap_increasing(ticker, df_ma5, df_ma20, df_ma40) == False:
+                return False
+            else:
+                return True
         else:
             return False
 
