@@ -1,0 +1,151 @@
+from yahoo_fin import stock_info
+import yfinance as yf
+import pandas as pd
+
+# 이동평균선 설정
+short_window = 5
+medium_window = 20
+long_window = 40
+
+# 나스닥 종목 리스트 가져오기
+def get_nasdaq_tickers():
+    return stock_info.tickers_nasdaq()
+
+# S&P SmallCap 600 종목 리스트 가져오기
+def get_SPSC600_tickers():
+    url = 'https://en.wikipedia.org/wiki/List_of_S%26P_600_companies'
+    tables = pd.read_html(url)
+
+    df = tables[0]
+    tickers = df['Symbol'].tolist()
+
+    return tickers
+
+# 러셀2000 종목 리스트 가져오기
+def get_RS2000_tickers():
+    file_path = 'russell_2000_components.csv'
+
+    df = pd.read_csv(file_path)
+    tickers = df['Ticker'].tolist()
+
+    return tickers
+
+# 스테이지 판별 함수
+def get_stage(ma5, ma20, ma40):
+    if pd.isna(ma5) or pd.isna(ma20) or pd.isna(ma40):
+        return None  # NaN 값 있으면 스테이지 계산 불가
+
+    if ma5 > ma20 > ma40:
+        return 1
+    elif ma20 > ma5 > ma40:
+        return 2
+    elif ma20 > ma40 > ma5:
+        return 3
+    elif ma40 > ma20 > ma5:
+        return 4
+    elif ma40 > ma5 > ma20:
+        return 5
+    elif ma5 > ma40 > ma20:
+        return 6
+    else:
+        return None
+
+# 3일 연속 간격 증가 확인 함수
+def is_gap_increasing(ticker, ma_short, ma_medium, ma_long):
+    gap1 = [ma_medium.iloc[i][ticker] - ma_short.iloc[i][ticker] for i in range(3)]
+    gap2 = [ma_long.iloc[i][ticker] - ma_medium.iloc[i][ticker] for i in range(3)]
+    is_gap1_increasing = gap1[0] > gap1[1] > gap1[2]
+    is_gap2_increasing = gap2[0] > gap2[1] > gap2[2]
+
+    return is_gap1_increasing and is_gap2_increasing
+
+# 중복된 스테이지 요약 함수
+def compress_stages(lst):
+    if not lst:
+        return []
+
+    compressed = [lst[0]]  # 첫 번째 값은 무조건 넣고 시작
+    for i in range(1, len(lst)):
+        if lst[i] != lst[i-1]:
+            compressed.append(lst[i])
+    return compressed
+
+# 제1스테이지 유지 일수 확인 함수
+def count_consecutive_repeats(lst):
+    if not lst:
+        return 0
+
+    count = 1  # 첫 번째 항목은 무조건 1번 등장한 것으로 시작
+    first_value = lst[0]
+
+    for i in range(1, len(lst)):
+        if lst[i] == first_value:
+            count += 1
+        else:
+            break  # 첫 번째 값과 다른 숫자가 나오면 중단
+
+    return count
+
+# 스테이지 변환 체크 함수
+def check_condition(ticker):
+    try:
+        data = yf.download(ticker, interval='1d', period='130d', progress=False)
+        if data.empty or len(data) < 130:
+            return False
+
+        ma5 = data['Close'].rolling(window=short_window).mean()
+        ma20 = data['Close'].rolling(window=medium_window).mean()
+        ma40 = data['Close'].rolling(window=long_window).mean()
+
+        df_ma5 = pd.DataFrame(ma5.iloc[long_window-1:].iloc[::-1])
+        df_ma20 = pd.DataFrame(ma20.iloc[long_window-1:].iloc[::-1])
+        df_ma40 = pd.DataFrame(ma40.iloc[long_window-1:].iloc[::-1])
+
+        ##### 단,중,장기 이동평균선 3일 연속 향상
+        if not (df_ma5.iloc[0][ticker] > df_ma5.iloc[1][ticker] > df_ma5.iloc[2][ticker] and
+                df_ma20.iloc[0][ticker] > df_ma20.iloc[1][ticker] > df_ma20.iloc[2][ticker] and
+                df_ma40.iloc[0][ticker] > df_ma40.iloc[1][ticker] > df_ma40.iloc[2][ticker]):
+            return False
+
+        ##### 단-중-장기 이동평균선 간격 3일 연속 증가
+        if is_gap_increasing(ticker, df_ma5, df_ma20, df_ma40) == False:
+            return False
+
+        stages = []
+        for i in range(0, len(df_ma5)):
+            s = get_stage(df_ma5.iloc[i][ticker], df_ma20.iloc[i][ticker], df_ma40.iloc[i][ticker])
+            stages.append(s)
+        cp_stages = compress_stages(stages)
+
+        ##### 제1스테이지 유지 기간 3일 이상인지 확인
+        if count_consecutive_repeats(stages) < 3:
+            return False
+
+        ##### 제6스테이지 → 제1스테이지 확인
+        if len(cp_stages) < 2:
+            return False
+        if cp_stages[0] == 1 and cp_stages[1] == 6:
+            return True
+        else:
+            return False
+
+    except Exception as e:
+        print(f"Error with {ticker}: {e}")
+        return False
+
+# 조건 만족 종목 찾기
+def find_matching_stocks():
+    tickers = get_nasdaq_tickers()
+    # tickers = get_SPSC600_tickers()
+    # tickers = get_RS2000_tickers()
+    matched = []
+    for ticker in tickers:
+        if check_condition(ticker):
+            matched.append(ticker)
+            print(ticker)
+    return matched
+
+# 실행
+stocks = find_matching_stocks()
+print("매수 추천 종목들:")
+print(stocks)
