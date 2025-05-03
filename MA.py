@@ -1,6 +1,7 @@
 from yahoo_fin import stock_info
 import yfinance as yf
 import pandas as pd
+from datetime import datetime
 
 # 이동평균선 설정
 short_window = 5
@@ -149,3 +150,11 @@ def find_matching_stocks():
 stocks = find_matching_stocks()
 print("매수 추천 종목들:")
 print(stocks)
+
+# txt파일 저장
+path = "C:\Users\JiHoon\OneDrive\MA_result.txt"
+today = datetime.today().strftime('%Y-%m-%d')
+line = today + '\t' + '\t'.join(stocks) + '\n'
+
+with open(path, 'a', encoding='utf-8') as f:
+    f.write(line)
