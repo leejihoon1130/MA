@@ -2,6 +2,12 @@ from yahoo_fin import stock_info
 import yfinance as yf
 import pandas as pd
 from datetime import datetime
+import requests
+
+# 텔레그램 토큰/ID
+BOT_TOKEN = '7596283010:AAFDWckYKE96cQabSc8f3d8MHbhB8gWuaIU'
+CHAT_ID = '6575518263'
+
 
 # 이동평균선 설정
 short_window = 5
@@ -152,9 +158,19 @@ print("매수 추천 종목들:")
 print(stocks)
 
 # txt파일 저장
-path = "C:\Users\JiHoon\OneDrive\MA_result.txt"
+path = "C:\\Users\\JiHoon\\OneDrive\\MA_result.txt"
 today = datetime.today().strftime('%Y-%m-%d')
 line = today + '\t' + '\t'.join(stocks) + '\n'
 
 with open(path, 'a', encoding='utf-8') as f:
     f.write(line)
+
+# 텔레그램 전송
+message = "[MA 기준 매수 종목 추천]" + "\n" + f"({today})"
+url = f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage"
+response = requests.post(url, data={'chat_id': CHAT_ID, 'text': message})
+
+if response.status_code == 200:
+    print("✅ 텔레그램 전송 성공!")
+else:
+    print(f"❌ 오류 발생: {response.text}")
