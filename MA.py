@@ -8,7 +8,6 @@ import requests
 BOT_TOKEN = '7596283010:AAFDWckYKE96cQabSc8f3d8MHbhB8gWuaIU'
 CHAT_ID = '6575518263'
 
-
 # 이동평균선 설정
 short_window = 5
 medium_window = 20
@@ -93,6 +92,12 @@ def count_consecutive_repeats(lst):
 
     return count
 
+
+# 상장폐지 가능 종목 제외 함수
+def filter_recommendations(recommendations, non_compliant_tickers):
+    return [ticker for ticker in recommendations if ticker not in non_compliant_tickers]
+
+# [주요 알고리즘]
 # 스테이지 변환 체크 함수
 def check_condition(ticker):
     try:
@@ -100,9 +105,15 @@ def check_condition(ticker):
         if data.empty or len(data) < 130:
             return False
 
-        ma5 = data['Close'].rolling(window=short_window).mean()
-        ma20 = data['Close'].rolling(window=medium_window).mean()
-        ma40 = data['Close'].rolling(window=long_window).mean()
+        # SMA
+        # ma5 = data['Close'].rolling(window=short_window).mean()
+        # ma20 = data['Close'].rolling(window=medium_window).mean()
+        # ma40 = data['Close'].rolling(window=long_window).mean()
+
+        # EMA
+        ma5 = data['Close'].ewm(span=short_window, adjust=False).mean()
+        ma20 = data['Close'].ewm(span=medium_window, adjust=False).mean()
+        ma40 = data['Close'].ewm(span=long_window, adjust=False).mean()
 
         df_ma5 = pd.DataFrame(ma5.iloc[long_window-1:].iloc[::-1])
         df_ma20 = pd.DataFrame(ma20.iloc[long_window-1:].iloc[::-1])
@@ -154,11 +165,22 @@ def find_matching_stocks():
 
 # 실행
 stocks = find_matching_stocks()
-print("매수 추천 종목들:")
-print(stocks)
+
+# 상장폐지 가능 종목(Non-compliant Companies) 제외
+ncc_df = pd.read_csv(r"C:\\Users\\이지훈\\OneDrive\\NasdaqNonComplianceIssuers_250506.csv")
+ncc_tickers = ncc_df["Symbol"].tolist()
+len_ncc = len(ncc_tickers)
+
+filtered_stocks =  [ticker for ticker in stocks if ticker not in ncc_tickers]
+len_stocks = len(filtered_stocks)
+
+print("매수 추천 종목들: ")
+print(filtered_stocks)
+print("* 매수 추천 종목 개수 :", len_stocks)
+print("* 상장폐지 가능 종목 개수 :", len_ncc)
 
 # txt파일 저장
-path = "C:\\Users\\JiHoon\\OneDrive\\MA_result.txt"
+path = "C:\\Users\\이지훈\\OneDrive\\MA_result.txt"
 today = datetime.today().strftime('%Y-%m-%d')
 line = today + '\t' + '\t'.join(stocks) + '\n'
 
@@ -166,7 +188,7 @@ with open(path, 'a', encoding='utf-8') as f:
     f.write(line)
 
 # 텔레그램 전송
-message = "[MA 기준 매수 종목 추천]" + "\n" + f"({today})"
+message = "[MA 기준 매수 종목 추천" + f"({len_stocks})]" + "\n" + f"({today})"
 url = f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage"
 response = requests.post(url, data={'chat_id': CHAT_ID, 'text': message})
 
