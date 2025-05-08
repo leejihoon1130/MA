@@ -180,10 +180,6 @@ stocks = find_matching_stocks()
 
 # 상장폐지 가능 종목(Non-compliant Companies) 제외
 ncc_df = pd.read_csv(r"C:\\Users\\JiHoon\\OneDrive\\NasdaqNonComplianceIssuers_250506.csv")
-<<<<<<< HEAD
-=======
-# ncc_df = pd.read_csv(r"C:\\Users\\이지훈\\OneDrive\\NasdaqNonComplianceIssuers_250506.csv")
->>>>>>> 580b589334dba4b49dcecc6d42f2a0d7d0c55b15
 ncc_tickers = ncc_df["Symbol"].tolist()
 len_ncc = len(ncc_tickers)
 
