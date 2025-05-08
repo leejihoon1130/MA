@@ -174,7 +174,7 @@ def find_matching_stocks():
     return matched
 
 
-# 실행
+# 실행_1
 session = requests.Session(impersonate="chrome")
 stocks = find_matching_stocks()
 
