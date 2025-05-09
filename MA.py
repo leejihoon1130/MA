@@ -106,6 +106,17 @@ def filter_recommendations(recommendations, non_compliant_tickers):
     return [ticker for ticker in recommendations if ticker not in non_compliant_tickers]
 
 
+# 보통주 외 종목 제외 함수
+def is_common_stock(ticker):
+    try:
+        info = yf.Ticker(ticker).info
+        if info.get("quoteType") == "EQUITY":
+            return ticker
+    except Exception as e:
+        print(f"Error with {ticker}: {e}")
+        return False
+
+
 # [주요 알고리즘]
 # 스테이지 변환 체크 함수
 def check_condition(ticker):
@@ -168,9 +179,10 @@ def find_matching_stocks():
     # tickers = get_RS2000_tickers()
     matched = []
     for ticker in tickers:
-        if check_condition(ticker):
-            matched.append(ticker)
-            print(ticker)
+        if is_common_stock(ticker):
+            if check_condition(ticker):
+                matched.append(ticker)
+                print(ticker)
     return matched
 
 
@@ -193,6 +205,7 @@ print("* 상장폐지 가능 종목 개수 :", len_ncc)
 
 # txt파일 저장
 path = "C:\\Users\\JiHoon\\OneDrive\\MA_result.txt"
+today = datetime.today().strftime('%Y-%m-%d %H:%M:%S')
 line = today + '\t' + '\t'.join(stocks) + '\n'
 
 with open(path, 'a', encoding='utf-8') as f:
