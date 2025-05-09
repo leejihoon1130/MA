@@ -2,7 +2,6 @@ from yahoo_fin import stock_info
 import yfinance as yf
 import pandas as pd
 from datetime import datetime
-import requests
 from curl_cffi import requests
 
 # 텔레그램 토큰/ID
@@ -109,7 +108,7 @@ def filter_recommendations(recommendations, non_compliant_tickers):
 # 보통주 외 종목 제외 함수
 def is_common_stock(ticker):
     try:
-        info = yf.Ticker(ticker).info
+        info = yf.Ticker(ticker, session=session).info
         if info.get("quoteType") == "EQUITY":
             return ticker
     except Exception as e:
@@ -158,7 +157,7 @@ def check_condition(ticker):
         ##### 제6스테이지 → 제1스테이지 확인
         if len(cp_stages) < 2:
             return False
-        if cp_stages[0] == 1 and cp_stages[1] == 6:
+        if cp_stages[0] == 1 and cp_stages[1] == 6 and cp_stages[2] == 5 and cp_stages[3] == 4:
             ##### 단-중-장기 이동평균선 간격 3일 연속 증가(미충족시 skip)
             if not is_gap_increasing(ticker, df_ma5, df_ma20, df_ma40):
                 return False
